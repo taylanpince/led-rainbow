@@ -12,6 +12,7 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 
 const int LED_PIN = 2;
 const int LED_COUNT = 57;
+const int MAX_BRIGHTNESS = 200;
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -91,11 +92,11 @@ void loop() {
     }
 
     if (hr == 8) {
-      strip.setBrightness(map(now.minute(), 0, 60, 0, 100));
+      strip.setBrightness(map(now.minute(), 0, 60, 0, MAX_BRIGHTNESS));
     } else if (hr == 19) {
-      strip.setBrightness(map(now.minute(), 0, 60, 100, 0));
+      strip.setBrightness(map(now.minute(), 0, 60, MAX_BRIGHTNESS, 0));
     } else {
-      strip.setBrightness(100);
+      strip.setBrightness(MAX_BRIGHTNESS);
     }
 
     strip.show();
