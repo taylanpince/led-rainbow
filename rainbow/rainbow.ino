@@ -3,18 +3,14 @@
  #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
 
+
 #include "RTClib.h"
 
 RTC_DS3231 rtc;
 
-unsigned int year_old = 0;
-DateTime dst_start, dst_end;
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
-#define UPLOAD_OFFSET 5
-
-#define POLLING_DELAY 500
-
-const int LED_PIN = 1;
+const int LED_PIN = 2;
 const int LED_COUNT = 57;
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -46,73 +42,65 @@ void setup() {
   clock_prescale_set(clock_div_1);
 #endif
 
-//  if (rtc.lostPower()) {
-//    // Set the time to the compile time + offset
-//    DateTime compile_time = DateTime(F(__DATE__), F(__TIME__)) + TimeSpan(UPLOAD_OFFSET);
+  Serial.begin(57600);
+  
+  if (!rtc.begin()) {
+    Serial.println("RTC not working, abort");
+    abort();
+  }
 
-//    // Checking if compile time is in DST
-//    uint16_t year = compile_time.year();
-//  
-//    // DST starts on the second Sunday of March, 2AM
-//    // Get beginning of second week and then offset to Sunday
-//    DateTime dst_start = DateTime(year, 3, 8, 2, 0, 0);
-//    dst_start = dst_start + TimeSpan((7-dst_start.dayOfTheWeek()) % 7, 0, 0, 0);
-//  
-//    // DST ends on the first Sunday of November, 2AM
-//    // Get first day of month and then offset to Sunday
-//    DateTime dst_end = DateTime(year, 11, 1, 2, 0, 0);
-//    dst_end = dst_end + TimeSpan((7-dst_end.dayOfTheWeek()) % 7, 0, 0, 0);
-//  
-//    // If compile time is between DST start and end, then subtract 1 hour to get standard time
-//    compile_time = compile_time >= dst_start && compile_time < dst_end ? (compile_time - TimeSpan(0,1,0,0)) : compile_time;
-//    
-//    rtc.adjust(compile_time);
-//  }
-
+  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  
   strip.begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
   strip.show();            // Turn OFF all pixels ASAP
-  strip.setBrightness(100);
 }
 
 void loop() {
   DateTime now = rtc.now();
-  byte hr = now.hour();
+  uint8_t hr = now.hour();
+
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print(" (");
+  Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
+  Serial.print(") ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
   
-  // Calculate new DST cutoffs if the year changes
-//  if(now.year() != year_old) {
-//    // DST starts on the second Sunday of March, 2AM
-//    dst_start = DateTime(now.year(), 3, 8, 2, 0, 0);
-//    dst_start = dst_start + TimeSpan((7-dst_start.dayOfTheWeek()) % 7, 0, 0, 0);
-//  
-//    // DST ends on the first Sunday of November, 1AM (standard time)
-//    dst_end = DateTime(now.year(), 11, 1, 1, 0, 0);
-//    dst_end = dst_end + TimeSpan((7-dst_end.dayOfTheWeek()) % 7, 0, 0, 0); 
-//    
-//    year_old = now.year();
-//  }
-  
-  // If current time is between the DST cutoffs, add 1 to the hour digit
-//  hr = (now >= dst_start && now < dst_end) ? (hr + 1) : hr;
-  
-  int ledIndex = 0;
-  int brightness = (hr >= 20 || hr < 8) ? 0 : 250;
-  
-  for (int i = 0; i < 4; i++) {
-    int bandCount = bandCounts[i];
-    int colorIndex = (i + currentColorIndex) % 5;
-    uint32_t color = strip.Color(colors[colorIndex][0], colors[colorIndex][1], colors[colorIndex][2], brightness);
+  if (hr >= 20 || hr < 8) {
+    strip.fill(strip.Color(0, 0, 0), 0, LED_COUNT);
+    strip.show();
+  } else {
+    int ledIndex = 0;
 
-    strip.fill(color, ledIndex, bandCount);
+    for (int i = 0; i < 4; i++) {
+      int bandCount = bandCounts[i];
+      int colorIndex = (i + currentColorIndex) % 5;
+      uint32_t color = strip.Color(colors[colorIndex][0], colors[colorIndex][1], colors[colorIndex][2]);
+    
+      strip.fill(color, ledIndex, bandCount);
+    
+      ledIndex += bandCount;
+    }
 
-    ledIndex += bandCount;
-  }
+    if (hr == 8) {
+      strip.setBrightness(map(now.minute(), 0, 60, 0, 100));
+    } else if (hr == 19) {
+      strip.setBrightness(map(now.minute(), 0, 60, 100, 0));
+    } else {
+      strip.setBrightness(100);
+    }
 
-  strip.show();
+    strip.show();
 
-  currentColorIndex += 1;
-
-  if (currentColorIndex > 4) {
-    currentColorIndex = 0;
+    currentColorIndex = (currentColorIndex >= 4) ? 0 : currentColorIndex + 1;
   }
   
   delay(2500);
