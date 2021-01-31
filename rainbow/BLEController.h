@@ -43,32 +43,55 @@ public:
         bool writeSettings = false;
 
         while (BLEMini_available() == 4) {
-            int data0 = BLEMini_read();
-            int data1 = BLEMini_read();
-            int data2 = BLEMini_read();
-            int data3 = BLEMini_read();
+            int command = BLEMini_read();
+            int arg1 = BLEMini_read();
+            int arg2 = BLEMini_read();
+            int arg3 = BLEMini_read();
 
-            switch (data0) {
+            switch (command) {
                 case CommandCode::readSettings:
                     writeSettings = true;
                     break;
                 case CommandCode::mode:
+                    led->currentMode = arg1;
                     break;
                 case CommandCode::wakeUpTime:
+                    led->wakeUpTime[0] = arg1;
+                    led->wakeUpTime[1] = arg2;
+                    led->wakeUpTime[2] = arg3;
                     break;
                 case CommandCode::sleepTime:
+                    led->sleepTime[0] = arg1;
+                    led->sleepTime[1] = arg2;
+                    led->sleepTime[2] = arg3;
                     break;
                 case CommandCode::colorOne:
+                    led->colors[0][0] = arg1;
+                    led->colors[0][1] = arg2;
+                    led->colors[0][2] = arg3;
                     break;
                 case CommandCode::colorTwo:
+                    led->colors[1][0] = arg1;
+                    led->colors[1][1] = arg2;
+                    led->colors[1][2] = arg3;
                     break;
                 case CommandCode::colorThree:
+                    led->colors[2][0] = arg1;
+                    led->colors[2][1] = arg2;
+                    led->colors[2][2] = arg3;
                     break;
                 case CommandCode::colorFour:
+                    led->colors[3][0] = arg1;
+                    led->colors[3][1] = arg2;
+                    led->colors[3][2] = arg3;
                     break;
                 case CommandCode::colorFive:
+                    led->colors[4][0] = arg1;
+                    led->colors[4][1] = arg2;
+                    led->colors[4][2] = arg3;
                     break;
                 case CommandCode::animationMode:
+                    led->animationMode = arg1;
                     break;
                 case CommandCode::time:
                     break;

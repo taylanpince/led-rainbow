@@ -2,6 +2,7 @@
 // Works with Adafruit Neopixel library and stores all config
 
 #include <Adafruit_NeoPixel.h>
+#include <RTClib.h>
 
 
 enum DeviceMode {
@@ -18,6 +19,13 @@ enum AnimationMode {
 class LEDController {
 private:
     int currentColorIndex = 0;
+    int total_leds;
+
+    unsigned long lastUpdateTime = 0;
+    int UPDATE_INTERVAL = 2500;
+
+    const int MAX_BRIGHTNESS = 200;
+    const int BRIGHNESS_SPAN = 60 * 30;
 
     const int firstBandCount = 7;
     const int secondBandCount = 12;
@@ -30,6 +38,55 @@ private:
         thirdBandCount,
         fourthBandCount,
     };
+
+    void turnOff() {
+        strip->fill(strip->Color(0, 0, 0), 0, total_leds);
+    }
+
+    void updateStripColors() {
+        int ledIndex = 0;
+
+        for (int i = 0; i < 4; i++) {
+            int bandCount = bandCounts[i];
+            int colorIndex = (i + currentColorIndex) % 5;
+            uint32_t color = strip->Color(colors[colorIndex][0], colors[colorIndex][1], colors[colorIndex][2]);
+
+            strip->fill(color, ledIndex, bandCount);
+
+            ledIndex += bandCount;
+        }
+
+        if (animationMode == AnimationMode::on) {
+            currentColorIndex = (currentColorIndex >= 4) ? 0 : currentColorIndex + 1;
+        }
+    }
+
+    int calculateBrightness(DateTime now) {
+        // 1. Calculate midnight today
+        DateTime midnight = DateTime(now.year(), now.month(), now.day());
+
+        // 2. Calculate wakeUpTime and sleepTime projected to today/tomorrow
+        DateTime wakeUpDate = midnight + TimeSpan(0, wakeUpTime[0], wakeUpTime[1], wakeUpTime[2]);
+        DateTime sleepDate = midnight + TimeSpan(0, sleepTime[0], sleepTime[1], sleepTime[2]);
+
+        // 3. Figure out if we are between two times, if not, turn off
+        if (now < wakeUpDate || now >= sleepDate) {
+            return 0;
+        }
+
+        // 4. Calculate time span from sleepTime and to wakeUpTime
+        TimeSpan spanSinceWakeUp = now - wakeUpDate;
+        TimeSpan spanTilSleep = sleepDate - now;
+
+        // 5. Calculate brightness based on time spans
+        if (spanSinceWakeUp.totalseconds() > 0 && spanSinceWakeUp.totalseconds() <= BRIGHNESS_SPAN) {
+            return map(spanSinceWakeUp.totalseconds(), 0, BRIGHNESS_SPAN, 0, MAX_BRIGHTNESS);
+        } else if (spanTilSleep.totalseconds() > 0 && spanTilSleep.totalseconds() <= BRIGHNESS_SPAN) {
+            return map(spanTilSleep.totalseconds(), 0, BRIGHNESS_SPAN, 0, MAX_BRIGHTNESS);
+        } else {
+            return MAX_BRIGHTNESS;
+        }
+    }
 
 public:
     Adafruit_NeoPixel *strip;
@@ -45,43 +102,45 @@ public:
         {193, 36, 225},
     };
 
-    LEDController(Adafruit_NeoPixel &strip) : strip(&strip) {};
+    uint8_t wakeUpTime[3] = {8, 0, 0};
+    uint8_t sleepTime[3] = {20, 0, 0};
+
+    LEDController(Adafruit_NeoPixel &strip, int total_leds) : strip(&strip), total_leds(total_leds) {};
     
     void init() {
         strip->begin();
         strip->show();
     };
 
-    void update() {
-//  uint8_t hr = now.hour();
-//  uint8_t mnt = now.minute();
-//  if (hr >= 20 || hr < 8) {
-//    strip.fill(strip.Color(0, 0, 0), 0, LED_COUNT);
-//    strip.show();
-//  } else {
-//    int ledIndex = 0;
-//
-//    for (int i = 0; i < 4; i++) {
-//      int bandCount = bandCounts[i];
-//      int colorIndex = (i + currentColorIndex) % 5;
-//      uint32_t color = strip.Color(colors[colorIndex][0], colors[colorIndex][1], colors[colorIndex][2]);
-//    
-//      strip.fill(color, ledIndex, bandCount);
-//    
-//      ledIndex += bandCount;
-//    }
-//
-//    if (hr == 8) {
-//      strip.setBrightness(map(now.minute(), 0, 60, 0, MAX_BRIGHTNESS));
-//    } else if (hr == 19) {
-//      strip.setBrightness(map(now.minute(), 0, 60, MAX_BRIGHTNESS, 0));
-//    } else {
-//      strip.setBrightness(MAX_BRIGHTNESS);
-//    }
-//
-//    strip.show();
-//
-//    currentColorIndex = (currentColorIndex >= 4) ? 0 : currentColorIndex + 1;
-//  }
+    void update(DateTime now) {
+        if (millis() - lastUpdateTime < UPDATE_INTERVAL) {
+            return;
+        }
+
+        lastUpdateTime = millis();
+
+        switch (currentMode) {
+            case DeviceMode::alwaysOff:
+                turnOff();
+                break;
+            case DeviceMode::alwaysOn:
+                updateStripColors();
+                break;
+            case DeviceMode::automatic:
+                int brightness = calculateBrightness(now);
+
+                if (brightness > 0) {
+                    updateStripColors();
+
+                    strip->setBrightness(brightness);
+                } else {
+                    turnOff();
+                }
+                break;
+            default:
+                break;
+        }
+
+        strip->show();
     };
 };

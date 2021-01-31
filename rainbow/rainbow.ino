@@ -1,34 +1,29 @@
 #include "BLEController.h"
 
-//#include "RTClib.h"
-
-//RTC_DS3231 rtc;
 
 const int LED_PIN = 2;
 const int LED_COUNT = 57;
-const int MAX_BRIGHTNESS = 200;
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-LEDController led(strip);
+LEDController led(strip, LED_COUNT);
 BLEController ble = BLEController(led);
+RTC_DS3231 rtc;
 
 void setup() {
-  ble.init();
-  led.init();
+    ble.init();
+    led.init();
   
-//  if (!rtc.begin()) {
-//    abort();
-//  }
+    if (!rtc.begin()) {
+        abort();
+    }
 
-  // If datetime adjustment is needed:
-  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-
+    // If datetime adjustment is needed:
+    //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 }
 
 void loop() {
     ble.process();
+    led.update(rtc.now());
 
-//  DateTime now = rtc.now();
-
-    led.update();
+    delay(250);
 }

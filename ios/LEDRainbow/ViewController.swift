@@ -69,7 +69,7 @@ struct RainbowCommand: Equatable {
         command.append(arg1 ?? 0)
         command.append(arg2 ?? 0)
         command.append(arg3 ?? 0)
-        
+        print("Sending: \(command)")
         return Data(bytes: command, count: command.count)
     }
 }
@@ -89,6 +89,34 @@ class ValueTableViewCell: UITableViewCell {
     }
 }
 
+class ColorTableViewCell: UITableViewCell {
+
+    let colorView: UIView = {
+        let view = UIView()
+        
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.layer.cornerRadius = 10
+        view.clipsToBounds = true
+        
+        return view
+    }()
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: .default, reuseIdentifier: reuseIdentifier)
+        
+        contentView.addSubview(colorView)
+        
+        colorView.widthAnchor.constraint(equalToConstant: 20.0).isActive = true
+        colorView.heightAnchor.constraint(equalToConstant: 20.0).isActive = true
+        colorView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor).isActive = true
+        colorView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -10).isActive = true
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 class ViewController: UITableViewController {
     let bleManager = BLE()
     
@@ -97,68 +125,140 @@ class ViewController: UITableViewController {
     var animationMode: AnimationMode?
     var wakeUpTime: Date?
     var sleepTime: Date?
-    var colors: [UIColor]?
+    var colors: [UIColor] = [.white, .white, .white, .white, .white]
+    
+    var activeEditAction: CommandCode?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
         tableView.register(ValueTableViewCell.self, forCellReuseIdentifier: "Cell")
+        tableView.register(ColorTableViewCell.self, forCellReuseIdentifier: "ColorCell")
+        
+        clearsSelectionOnViewWillAppear = true
         
         bleManager.delegate = self
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
-        return 1
+        return 2
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 10
+        switch section {
+        case 0:
+            return 5
+        case 1:
+            return colors.count
+        default:
+            return 0
+        }
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
-
-        switch indexPath.row {
+        switch indexPath.section {
         case 0:
-            cell.textLabel?.text = "Connection Status"
-            cell.detailTextLabel?.text = connectionStatus.rawValue
+            let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+
+            switch indexPath.row {
+            case 0:
+                cell.textLabel?.text = "Connection Status"
+                cell.detailTextLabel?.text = connectionStatus.rawValue
+            case 1:
+                cell.textLabel?.text = "Device Mode"
+                
+                if let deviceMode = deviceMode {
+                    cell.detailTextLabel?.text = "\(String(describing: deviceMode))"
+                } else {
+                    cell.detailTextLabel?.text = "N/A"
+                }
+            case 2:
+                cell.textLabel?.text = "Animation Mode"
+                
+                if let animationMode = animationMode {
+                    cell.detailTextLabel?.text = "\(String(describing: animationMode))"
+                } else {
+                    cell.detailTextLabel?.text = "N/A"
+                }
+            case 3:
+                cell.textLabel?.text = "Wake Up Time"
+                
+                if let wakeUpTime = wakeUpTime {
+                    cell.detailTextLabel?.text = "\(DateFormatter.localizedString(from: wakeUpTime, dateStyle: .none, timeStyle: .short))"
+                } else {
+                    cell.detailTextLabel?.text = "N/A"
+                }
+            case 4:
+                cell.textLabel?.text = "Sleep Time"
+                
+                if let sleepTime = sleepTime {
+                    cell.detailTextLabel?.text = "\(DateFormatter.localizedString(from: sleepTime, dateStyle: .none, timeStyle: .short))"
+                } else {
+                    cell.detailTextLabel?.text = "N/A"
+                }
+            default:
+                break
+            }
+            
+            return cell
         case 1:
-            cell.textLabel?.text = "Device Mode"
-            
-            if let deviceMode = deviceMode {
-                cell.detailTextLabel?.text = "\(String(describing: deviceMode))"
-            } else {
-                cell.detailTextLabel?.text = "N/A"
+            guard let cell = tableView.dequeueReusableCell(withIdentifier: "ColorCell", for: indexPath) as? ColorTableViewCell else {
+                return tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
             }
-        case 2:
-            cell.textLabel?.text = "Animation Mode"
             
-            if let animationMode = animationMode {
-                cell.detailTextLabel?.text = "\(String(describing: animationMode))"
-            } else {
-                cell.detailTextLabel?.text = "N/A"
-            }
-        case 3:
-            cell.textLabel?.text = "Wake Up Time"
+            let color = colors[indexPath.row]
             
-            if let wakeUpTime = wakeUpTime {
-                cell.detailTextLabel?.text = "\(DateFormatter.localizedString(from: wakeUpTime, dateStyle: .none, timeStyle: .short))"
-            } else {
-                cell.detailTextLabel?.text = "N/A"
-            }
-        case 4:
-            cell.textLabel?.text = "Sleep Time"
+            cell.textLabel?.text = "Color \(indexPath.row + 1)"
+            cell.colorView.backgroundColor = color
             
-            if let sleepTime = sleepTime {
-                cell.detailTextLabel?.text = "\(DateFormatter.localizedString(from: sleepTime, dateStyle: .none, timeStyle: .short))"
-            } else {
-                cell.detailTextLabel?.text = "N/A"
+            return cell
+        default:
+            return tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+        }
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        switch indexPath.section {
+        case 0:
+            switch indexPath.row {
+            case 0:
+                break
+            case 1:
+                break
+            case 2:
+                break
+            case 3:
+                break
+            case 4:
+                break
+            default:
+                break
             }
+        case 1:
+            let colorPicker = UIColorPickerViewController()
+            
+            colorPicker.delegate = self
+            colorPicker.selectedColor = colors[indexPath.row]
+            
+            switch indexPath.row {
+            case 0:
+                activeEditAction = .colorOne
+            case 1:
+                activeEditAction = .colorTwo
+            case 2:
+                activeEditAction = .colorThree
+            case 3:
+                activeEditAction = .colorFour
+            case 4:
+                activeEditAction = .colorFive
+            default:
+                break
+            }
+            
+            present(colorPicker, animated: true, completion: nil)
         default:
             break
         }
-
-        return cell
     }
 }
 
@@ -233,11 +333,99 @@ extension ViewController : BLEDelegate {
                 if let hour = command.arg1, let min = command.arg2, let sec = command.arg3 {
                     sleepTime = Calendar.current.date(bySettingHour: Int(hour), minute: Int(min), second: Int(sec), of: Date())
                 }
+            case .colorOne:
+                if let red = command.arg1, let green = command.arg2, let blue = command.arg3 {
+                    colors[0] = UIColor(red: CGFloat(red) / 255.0,
+                                        green: CGFloat(green) / 255.0,
+                                        blue: CGFloat(blue) / 255.0,
+                                        alpha: 1.0)
+                }
+                break
+            case .colorTwo:
+                if let red = command.arg1, let green = command.arg2, let blue = command.arg3 {
+                    colors[1] = UIColor(red: CGFloat(red) / 255.0,
+                                        green: CGFloat(green) / 255.0,
+                                        blue: CGFloat(blue) / 255.0,
+                                        alpha: 1.0)
+                }
+                break
+            case .colorThree:
+                if let red = command.arg1, let green = command.arg2, let blue = command.arg3 {
+                    colors[2] = UIColor(red: CGFloat(red) / 255.0,
+                                        green: CGFloat(green) / 255.0,
+                                        blue: CGFloat(blue) / 255.0,
+                                        alpha: 1.0)
+                }
+                break
+            case .colorFour:
+                if let red = command.arg1, let green = command.arg2, let blue = command.arg3 {
+                    colors[3] = UIColor(red: CGFloat(red) / 255.0,
+                                        green: CGFloat(green) / 255.0,
+                                        blue: CGFloat(blue) / 255.0,
+                                        alpha: 1.0)
+                }
+                break
+            case .colorFive:
+                if let red = command.arg1, let green = command.arg2, let blue = command.arg3 {
+                    colors[4] = UIColor(red: CGFloat(red) / 255.0,
+                                        green: CGFloat(green) / 255.0,
+                                        blue: CGFloat(blue) / 255.0,
+                                        alpha: 1.0)
+                }
+                break
             default:
                 break
             }
         }
         
         tableView.reloadData()
+    }
+}
+
+extension ViewController : UIColorPickerViewControllerDelegate {
+    func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
+        guard let action = activeEditAction else {
+            return
+        }
+        
+        switch action {
+        case .colorOne:
+            colors[0] = viewController.selectedColor
+        case .colorTwo:
+            colors[1] = viewController.selectedColor
+        case .colorThree:
+            colors[2] = viewController.selectedColor
+        case .colorFour:
+            colors[3] = viewController.selectedColor
+        case .colorFive:
+            colors[4] = viewController.selectedColor
+        default:
+            break
+        }
+        
+        var red: CGFloat = 0
+        var green: CGFloat = 0
+        var blue: CGFloat = 0
+        var alpha: CGFloat = 0
+        
+        if viewController.selectedColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            print("R: \(red) G: \(green) B: \(blue)")
+            let writeCommand = RainbowCommand(code: action,
+                                              arg1: UInt8(CGFloat.maximum(red, 0.0) * 255.0),
+                                              arg2: UInt8(CGFloat.maximum(green, 0.0) * 255.0),
+                                              arg3: UInt8(CGFloat.maximum(blue, 0.0) * 255.0))
+            
+            bleManager.write(data: writeCommand.payload)
+        }
+        
+        tableView.reloadData()
+        
+        dismiss(animated: true, completion: nil)
+        
+        activeEditAction = nil
+    }
+    
+    func colorPickerViewControllerDidSelectColor(_ viewController: UIColorPickerViewController) {
+        
     }
 }
