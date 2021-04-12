@@ -222,8 +222,34 @@ class ViewController: UITableViewController {
         case 0:
             switch indexPath.row {
             case 0:
+                if connectionStatus == .connected {
+                    // Disconnect
+                } else if connectionStatus == .disconnected {
+                    // Scan again
+                }
+                
                 break
             case 1:
+                switch deviceMode {
+                case .automatic:
+                    deviceMode = .alwaysOn
+                case .alwaysOn:
+                    deviceMode = .alwaysOff
+                case .alwaysOff:
+                    deviceMode = .automatic
+                default:
+                    deviceMode = .automatic
+                }
+                
+                if let deviceMode = deviceMode {
+                    let command = RainbowCommand(code: .mode,
+                                                 arg1: deviceMode.rawValue)
+                
+                    bleManager.write(data: command.payload)
+                }
+                
+                tableView.reloadRows(at: [indexPath], with: .automatic)
+                
                 break
             case 2:
                 break
@@ -259,6 +285,8 @@ class ViewController: UITableViewController {
         default:
             break
         }
+        
+        tableView.deselectRow(at: indexPath, animated: true)
     }
 }
 
